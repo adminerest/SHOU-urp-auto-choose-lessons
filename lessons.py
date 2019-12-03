@@ -49,7 +49,7 @@ class Lessons:
         self.id = str(input("用户名为："))
         passwd = str(input("密码为："))
         try:
-            login_img = self.session.get("https://urp.shou.edu.cn/img/captcha.jpg")
+            login_img = self.session.get("https://urp.shou.edu.cn/img/captcha.jpg", timeout=5)
         except requests.ConnectionError:
             print("获取验证码失败！连接错误！")
             exit(0)
@@ -69,7 +69,9 @@ class Lessons:
             data = {"j_username": self.id, "j_password": passwd, "j_captcha": code,
                     "_spring_security_remember_me": "on"}
             try:
-                rp = self.session.post(url="https://urp.shou.edu.cn/j_spring_security_check", data=data)
+                rp = self.session.post(url="https://urp.shou.edu.cn/j_spring_security_check",
+                                       data=data,
+                                       timeout=5)
             except requests.ConnectionError:
                 print("登录失败！连接错误！")
                 exit(0)
@@ -109,7 +111,8 @@ class Lessons:
             count += 1
             print("第" + str(count) + "次选课！")
             try:
-                html = self.session.get(url="https://urp.shou.edu.cn/student/courseSelect/courseSelect/index")
+                html = self.session.get(url="https://urp.shou.edu.cn/student/courseSelect/courseSelect/index",
+                                        timeout=5)
             except requests.ConnectionError:
                 print("选课页面无法加载！连接错误！")
                 exit(0)
@@ -123,7 +126,7 @@ class Lessons:
                 self.judge_logout(html)
                 bs = BeautifulSoup(html.text, "html.parser")
                 alart = bs.find("div", {"class": "alert alert-block alert-danger"})  # 判断是否可以选课
-                if alart != None:
+                if alart is not None:
                     print("对不起，当前为非选课阶段！")
                     exit(0)
                 tokenValue = bs.find("input", {"type": "hidden", "id": "tokenValue"})["value"]
@@ -131,7 +134,8 @@ class Lessons:
                 try:  # 提交选课表单
                     rq = self.session.post(url="https://urp.shou.edu.cn/student/courseSelect"
                                                "/selectCourse/checkInputCodeAndSubmit",
-                                           data=data)
+                                           data=data,
+                                           timeout=5)
                 except requests.ConnectionError:
                     print("选课提交失败！连接错误！")
                     exit(0)
@@ -147,7 +151,8 @@ class Lessons:
                     data.pop("inputCode")
                     try:  # 网站要求的选课二次确认
                         self.session.post(url="https://urp.shou.edu.cn/student/courseSelect/selectCourses/waitingfor",
-                                          data=data)
+                                          data=data,
+                                          timeout=5)
                     except requests.ConnectionError:
                         print("选课提交确认失败！连接错误！")
                         exit(0)
@@ -166,7 +171,8 @@ class Lessons:
                             try:  # 获取选课结果
                                 rq = self.session.post(url="https://urp.shou.edu.cn/student/"
                                                            "  courseSelect/selectResult/query",
-                                                       data=data)
+                                                       data=data,
+                                                       timeout=5)
                             except requests.ConnectionError:
                                 print("获取选课结果失败！连接错误！")
                                 exit(0)
