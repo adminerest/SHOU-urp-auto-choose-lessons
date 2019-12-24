@@ -7,9 +7,10 @@ from time import sleep
 
 class Lessons:
 
-    def __init__(self):
+    def __init__(self, dealType):
         self.session = requests.session()
         self.lessons_list = []
+        self.dealType = dealType
 
     def deal_info(self, lesson_info):  # 将课程信息进行转换
         lesson = {}
@@ -27,8 +28,8 @@ class Lessons:
         self.lessons_list.append(str(lesson))
         return
 
-    def sum_lessons(self, tokenValue):  # 将所有课程转换后的信息进行集中
-        data = {"dealType": "3", "fajhh": "4672", "sj": "0_0", "searchtj": "",
+    def sum_lessons(self, tokenValue, fajhh):  # 将所有课程转换后的信息进行集中
+        data = {"dealType": self.dealType, "fajhh": fajhh, "sj": "0_0", "searchtj": "",
                 "kclbdm": "", "inputCode": "", "tokenValue": tokenValue}
         kcIds = ""
         kcms = ""
@@ -130,7 +131,8 @@ class Lessons:
                     print("对不起，当前为非选课阶段！")
                     exit(0)
                 tokenValue = bs.find("input", {"type": "hidden", "id": "tokenValue"})["value"]
-                data = self.sum_lessons(tokenValue)
+                fajhh = bs.find("li", {"title": "校任选课", "id": "xarxk"})["onclick"].split('=')[1].split("'")[0]
+                data = self.sum_lessons(tokenValue, fajhh)
                 try:  # 提交选课表单
                     rq = self.session.post(url="https://urp.shou.edu.cn/student/courseSelect"
                                                "/selectCourse/checkInputCodeAndSubmit",
@@ -164,7 +166,7 @@ class Lessons:
                         exit(0)
                     else:
                         self.judge_logout(rq)
-                        data = {"kcNum": str(len(self.lessons_list)), "redisKey": self.id + "3"}
+                        data = {"kcNum": str(len(self.lessons_list)), "redisKey": self.id + self.dealType}
                         i = 1
                         while True:
                             sleep(1)  # 让服务器处理选课的等待时间，严禁删除！！！
