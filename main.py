@@ -3,13 +3,13 @@ from lessons import Lessons
 if __name__ == "__main__":
 
     """
-        所选课程输入格式如下，no = 课程号，id = 课序号，term = 学期，name = 课程名称
-        使用lessons.deal_info(lesson_info)将数据导入，否则数据无效！
-        例如：
-        lesson_info = {"no": "7603503", "id": "01", "term": "2019-2020-1-1", "name": "电影美学"}
-        lessons.deal_info(lesson_info)
-        lesson_info = {"no": "E0202017", "id": "02", "term": "2019-2020-1-1", "name": "大学生安全文化(在线课程）"}
-        lessons.deal_info(lesson_info)
+        请将所要选的课程放入名字为学号的csv文件中并将文件放入user_info
+        格式：课程号、课序号、课程名称
+        具体参照example.csv中格式
+        下方dealType是选课的类型
+        务必确保所选课程和课程类型一致！！！
+        现在目测3是校任选课（大概也就是任选课），2是专业选修
+        重修请自己选课。。。
     """
     dealType = "3"
     lessons = Lessons(dealType)

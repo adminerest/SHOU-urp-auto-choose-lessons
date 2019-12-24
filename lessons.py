@@ -10,6 +10,9 @@ from time import sleep
 class Lessons:
 
     def __init__(self, dealType):
+        """
+            dealType : 选课的类型
+        """
         self.session = requests.session()
         self.lessons_list = []
         self.dealType = dealType
@@ -135,6 +138,9 @@ class Lessons:
                     exit(0)
                 tokenValue = bs.find("input", {"type": "hidden", "id": "tokenValue"})["value"]
                 if count == 1:
+                    """
+                        导入培养方案编号以及选课的学期
+                    """
                     self.fajhh = bs.find("li", {"title": "校任选课", "id": "xarxk"})["onclick"].split('=')[1].split("'")[0]
                     term = bs.find("h4").text.split('(')[1].split('\r')[0]
                     if term[-1] == '春':
@@ -142,7 +148,7 @@ class Lessons:
                     else:
                         term = term[:9] + "-1-1"
                     road = "user_info/" + str(self.id) + ".csv"
-                    if not path.exists(road):
+                    if not path.exists(road):  # 导入选课内容
                         print("选课文件不存在！请检查！")
                         exit(0)
                     file = open(road, mode='r')
@@ -150,7 +156,7 @@ class Lessons:
 
                     for lesson in lessons:
                         lesson_info = {"no": lesson[0], "id": lesson[1], "term": term, "name": lesson[2]}
-                        self.deal_info(lesson_info)
+                        self.deal_info(lesson_info)  # 处理选课信息
                     file.close()
                 data = self.sum_lessons(tokenValue)
                 try:  # 提交选课表单
