@@ -1,7 +1,9 @@
 import requests
-from bs4 import BeautifulSoup
 import cv2
 import numpy
+import csv
+from os import path
+from bs4 import BeautifulSoup
 from time import sleep
 
 
@@ -28,8 +30,8 @@ class Lessons:
         self.lessons_list.append(str(lesson))
         return
 
-    def sum_lessons(self, tokenValue, fajhh):  # 将所有课程转换后的信息进行集中
-        data = {"dealType": self.dealType, "fajhh": fajhh, "sj": "0_0", "searchtj": "",
+    def sum_lessons(self, tokenValue):  # 将所有课程转换后的信息进行集中
+        data = {"dealType": self.dealType, "fajhh": self.fajhh, "sj": "0_0", "searchtj": "",
                 "kclbdm": "", "inputCode": "", "tokenValue": tokenValue}
         kcIds = ""
         kcms = ""
@@ -50,7 +52,7 @@ class Lessons:
         self.id = str(input("用户名为："))
         passwd = str(input("密码为："))
         try:
-            login_img = self.session.get("https://urp.shou.edu.cn/img/captcha.jpg", timeout=5)
+            login_img = self.session.get("https://urp.shou.edu.cn/img/captcha.jpg", timeout=10)
         except requests.ConnectionError:
             print("获取验证码失败！连接错误！")
             exit(0)
@@ -72,7 +74,7 @@ class Lessons:
             try:
                 rp = self.session.post(url="https://urp.shou.edu.cn/j_spring_security_check",
                                        data=data,
-                                       timeout=5)
+                                       timeout=10)
             except requests.ConnectionError:
                 print("登录失败！连接错误！")
                 exit(0)
@@ -97,6 +99,7 @@ class Lessons:
                 if lesson_no in self.lessons_list[i]:
                     self.lessons_list.pop(i)
                     print(lesson_no + ":" + info)
+                    break
         return
 
     def judge_logout(self, html):  # 账号在其他地方被登录时报错
@@ -108,12 +111,12 @@ class Lessons:
     def auto_spider(self):  # 自动选课部分
         self.login()  # 进行登录操作
         count = 0
-        while self.lessons_list:
+        while self.lessons_list or count == 0:
             count += 1
             print("第" + str(count) + "次选课！")
             try:
                 html = self.session.get(url="https://urp.shou.edu.cn/student/courseSelect/courseSelect/index",
-                                        timeout=5)
+                                        timeout=10)
             except requests.ConnectionError:
                 print("选课页面无法加载！连接错误！")
                 exit(0)
@@ -131,13 +134,30 @@ class Lessons:
                     print("对不起，当前为非选课阶段！")
                     exit(0)
                 tokenValue = bs.find("input", {"type": "hidden", "id": "tokenValue"})["value"]
-                fajhh = bs.find("li", {"title": "校任选课", "id": "xarxk"})["onclick"].split('=')[1].split("'")[0]
-                data = self.sum_lessons(tokenValue, fajhh)
+                if count == 1:
+                    self.fajhh = bs.find("li", {"title": "校任选课", "id": "xarxk"})["onclick"].split('=')[1].split("'")[0]
+                    term = bs.find("h4").text.split('(')[1].split('\r')[0]
+                    if term[-1] == '春':
+                        term = term[:9] + "-2-1"
+                    else:
+                        term = term[:9] + "-1-1"
+                    road = "user_info/" + str(self.id) + ".csv"
+                    if not path.exists(road):
+                        print("选课文件不存在！请检查！")
+                        exit(0)
+                    file = open(road, mode='r')
+                    lessons = csv.reader(file)
+
+                    for lesson in lessons:
+                        lesson_info = {"no": lesson[0], "id": lesson[1], "term": term, "name": lesson[2]}
+                        self.deal_info(lesson_info)
+                    file.close()
+                data = self.sum_lessons(tokenValue)
                 try:  # 提交选课表单
                     rq = self.session.post(url="https://urp.shou.edu.cn/student/courseSelect"
                                                "/selectCourse/checkInputCodeAndSubmit",
                                            data=data,
-                                           timeout=5)
+                                           timeout=10)
                 except requests.ConnectionError:
                     print("选课提交失败！连接错误！")
                     exit(0)
@@ -154,7 +174,7 @@ class Lessons:
                     try:  # 网站要求的选课二次确认
                         self.session.post(url="https://urp.shou.edu.cn/student/courseSelect/selectCourses/waitingfor",
                                           data=data,
-                                          timeout=5)
+                                          timeout=10)
                     except requests.ConnectionError:
                         print("选课提交确认失败！连接错误！")
                         exit(0)
@@ -174,7 +194,7 @@ class Lessons:
                                 rq = self.session.post(url="https://urp.shou.edu.cn/student/"
                                                            "  courseSelect/selectResult/query",
                                                        data=data,
-                                                       timeout=5)
+                                                       timeout=10)
                             except requests.ConnectionError:
                                 print("获取选课结果失败！连接错误！")
                                 exit(0)
