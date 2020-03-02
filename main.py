@@ -12,7 +12,7 @@ if __name__ == "__main__":
         不过好像2的话校任选和专业选修都可以选。。。
         重修请自己选课。。。
     """
-    dealType = "2"
+    dealType = "5"
     lessons = Lessons(dealType)
     lessons.auto_spider()  # 开始自动选课
     print("全部课程已成功选上！请去urp查收！")

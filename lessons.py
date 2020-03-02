@@ -17,30 +17,31 @@ class Lessons:
         self.lessons_list = []
         self.dealType = dealType
 
-    def deal_info(self, lesson_info):  # 将课程信息进行转换
-        lesson = {}
-        kcIds = lesson_info["no"] + "_" + lesson_info["id"] + "_" + lesson_info["term"]
-        lesson["kcIds"] = kcIds
-        kcms = ""
-        for c in lesson_info["name"]:
-            c = str(ord(c))
-            kcms += c + ','
-        kcms += "95,"
-        for c in lesson_info["id"]:
-            c = str(ord(c))
-            kcms += c + ','
-        lesson["kcms"] = kcms
-        self.lessons_list.append(str(lesson))
-        return
+    def deal_info(self, lessons_info):  # 将课程信息进行转换
+        deal_lessons = []
+        for lesson_info in lessons_info:
+            lesson = {}
+            kcIds = lesson_info["no"] + "_" + lesson_info["id"] + "_" + lesson_info["term"]
+            lesson["kcIds"] = kcIds
+            kcms = ""
+            for c in lesson_info["name"]:
+                c = str(ord(c))
+                kcms += c + ','
+            kcms += "95,"
+            for c in lesson_info["id"]:
+                c = str(ord(c))
+                kcms += c + ','
+            lesson["kcms"] = kcms
+            deal_lessons.append(lesson)
+        return deal_lessons
 
-    def sum_lessons(self, tokenValue):  # 将所有课程转换后的信息进行集中
+    def sum_lessons(self, tokenValue, lessons_list):  # 将所有课程转换后的信息进行集中
         data = {"dealType": self.dealType, "fajhh": self.fajhh, "sj": "0_0", "searchtj": "",
                 "kclbdm": "", "inputCode": "", "tokenValue": tokenValue}
         kcIds = ""
         kcms = ""
         not_first = False
-        for lesson in self.lessons_list:
-            lesson = eval(lesson)
+        for lesson in lessons_list:
             if not_first:
                 kcIds += ','
                 kcms += '44,'
@@ -99,7 +100,7 @@ class Lessons:
     def judge_info(self, lesson_no, info):  # 对选课结果进行判断
         if info != "你选择的课程没有课余量！":
             for i in range(len(self.lessons_list)):
-                if lesson_no in self.lessons_list[i]:
+                if lesson_no == self.lessons_list[i]['no']:
                     self.lessons_list.pop(i)
                     print(lesson_no + ":" + info)
                     break
@@ -111,115 +112,191 @@ class Lessons:
             exit(0)
         return
 
+    def judge_choose(self, bs):
+        alart = bs.find("div", {"class": "alert alert-block alert-danger"})  # 判断是否可以选课
+        if alart is not None:
+            print("对不起，当前为非选课阶段！")
+            exit(0)
+
+    def get_tokenvalue(self, bs):
+        tokenValue = bs.find("input", {"type": "hidden", "id": "tokenValue"})["value"]
+        return tokenValue
+
+    def get_term(self, bs):
+        term = bs.find("h4").text.split('(')[1].split('\r')[0]
+        if term[-1] == '春':
+            self.term = term[:9] + "-2-1"
+        else:
+            self.term = term[:9] + "-1-1"
+
+    def get_fajhh(self, bs):
+        self.fajhh = bs.find("li", {"title": "校任选课", "id": "xarxk"})["onclick"].split('=')[1].split("'")[0]
+
+    def get_lesson_page(self):
+        try:
+            html = self.session.get(url="https://urp.shou.edu.cn/student/courseSelect/courseSelect/index",
+                                    timeout=10)
+        except requests.ConnectionError:
+            print("选课页面无法加载！连接错误！")
+            exit(0)
+        except requests.HTTPError:
+            print("选课页面无法加载！请求网页有问题！")
+            exit(0)
+        except requests.Timeout:
+            print("选课页面无法加载！请求超时！")
+            exit(0)
+        else:
+            self.judge_logout(html)
+            bs = BeautifulSoup(html.text, "html.parser")
+            return bs
+
+    def get_lessons_list(self):
+        road = "user_info/" + str(self.id) + ".csv"
+        if not path.exists(road):  # 导入选课内容
+            print("选课文件不存在！请检查！")
+            exit(0)
+        file = open(road, mode='r')
+        lessons = csv.reader(file)
+        for lesson in lessons:
+            lesson_info = {"no": lesson[0], "id": lesson[1], "term": self.term, "name": lesson[2]}
+            self.lessons_list.append(lesson_info)
+        file.close()
+
+    def search_lessons_info(self):
+        lessons_list = []
+        for lesson in self.lessons_list:
+            data = {'searchtj': lesson['no'], 'xq': '0', 'jc': '0', 'kclbdm': ''}
+            url = 'https://urp.shou.edu.cn/student/courseSelect/freeCourse/courseList'
+            for count in range(1, 11):
+                try:
+                    rp = self.session.post(url=url, data=data, timeout=10)
+                except requests.ConnectionError:
+                    print("课余量查询失败！连接错误！")
+                    print('第%d次重试' % count)
+                    continue
+                except requests.HTTPError:
+                    print("课余量查询失败！请求网页有问题！")
+                    print('第%d次重试' % count)
+                    continue
+                except requests.Timeout:
+                    print("课余量查询失败！请求超时！")
+                    print('第%d次重试' % count)
+                    continue
+                else:
+                    self.judge_logout(rp)
+                    infos = eval(eval(rp.text)['rwRxkZlList'])
+                    for info in infos:
+                        if info['kxh'] == lesson['id'] and int(info['bkskyl']) > 0:
+                            lessons_list.append(lesson)
+                            break
+                    break
+            if count == 10:
+                print('课余量查询失败！请检查urp！')
+                exit(0)
+        return lessons_list
+
+    def choose_lessons(self, tokenValue, lesson_list):
+        deal_lessons = self.deal_info(lesson_list)
+        data = self.sum_lessons(tokenValue, deal_lessons)
+        for flag in range(1, 11):
+            try:  # 提交选课表单
+                rq = self.session.post(url="https://urp.shou.edu.cn/student/courseSelect"
+                                           "/selectCourse/checkInputCodeAndSubmit",
+                                       data=data,
+                                       timeout=10)
+            except requests.ConnectionError:
+                print("选课提交失败！连接错误！")
+                print('第%d次重试！' % flag)
+                continue
+            except requests.HTTPError:
+                print("选课提交失败！请求网页有问题！")
+                print('第%d次重试！' % flag)
+                continue
+            except requests.Timeout:
+                print("选课提交失败！请求超时！")
+                print('第%d次重试！' % flag)
+                continue
+            else:
+                break
+        if flag == 10:
+            print("选课提交失败！请检查urp！")
+            exit(0)
+        self.judge_logout(rq)
+        data.pop("tokenValue")
+        data.pop("inputCode")
+        for flag in range(1, 11):
+            try:  # 网站要求的选课二次确认
+                self.session.post(url="https://urp.shou.edu.cn/student/courseSelect/selectCourses/waitingfor",
+                                  data=data,
+                                  timeout=10)
+            except requests.ConnectionError:
+                print("选课提交确认失败！连接错误！")
+                print('第%d次重试！' % flag)
+                continue
+            except requests.HTTPError:
+                print("选课提交确认失败！请求网页有问题！")
+                print('第%d次重试！' % flag)
+                continue
+            except requests.Timeout:
+                print("选课提交确认失败！请求超时！")
+                print('第%d次重试！' % flag)
+                continue
+            else:
+                break
+        if flag == 10:
+            print("选课提交确认失败！请检查urp！")
+            exit(0)
+        self.judge_logout(rq)
+        data = {"kcNum": str(len(lesson_list)), "redisKey": self.id + self.dealType}
+        i = 1
+        while True:
+            sleep(1)  # 让服务器处理选课的等待时间，严禁删除！！！
+            try:  # 获取选课结果
+                rq = self.session.post(url="https://urp.shou.edu.cn/student/"
+                                           "  courseSelect/selectResult/query",
+                                       data=data,
+                                       timeout=10)
+            except requests.ConnectionError:
+                print("获取选课结果失败！连接错误！")
+                exit(0)
+            except requests.HTTPError:
+                print("获取选课结果失败！请求网页有问题！")
+                exit(0)
+            except requests.Timeout:
+                print("获取选课结果失败！请求超时！")
+                exit(0)
+            else:
+                self.judge_logout(rq)
+                if "true" in rq.text:
+                    break
+                if i > 10:
+                    print("获取选课结果失败！请到urp进行确认！")
+                    exit(0)
+                print("第" + str(i) + "次获取选课结果失败！正在重试！")
+                i += 1
+        infos = eval(rq.text.replace("true", '"true"'))
+        infos = infos["result"]
+        for info in infos:  # 判断选课结果并输出
+            self.judge_info(info.split("_")[0], info.split(":")[-1])
+
     def auto_spider(self):  # 自动选课部分
         self.login()  # 进行登录操作
         count = 0
         while self.lessons_list or count == 0:
+            sleep(0.5)
             count += 1
-            print("第" + str(count) + "次选课！")
-            try:
-                html = self.session.get(url="https://urp.shou.edu.cn/student/courseSelect/courseSelect/index",
-                                        timeout=10)
-            except requests.ConnectionError:
-                print("选课页面无法加载！连接错误！")
-                exit(0)
-            except requests.HTTPError:
-                print("选课页面无法加载！请求网页有问题！")
-                exit(0)
-            except requests.Timeout:
-                print("选课页面无法加载！请求超时！")
-                exit(0)
-            else:
-                self.judge_logout(html)
-                bs = BeautifulSoup(html.text, "html.parser")
-                alart = bs.find("div", {"class": "alert alert-block alert-danger"})  # 判断是否可以选课
-                if alart is not None:
-                    print("对不起，当前为非选课阶段！")
-                    exit(0)
-                tokenValue = bs.find("input", {"type": "hidden", "id": "tokenValue"})["value"]
-                if count == 1:
-                    """
-                        导入培养方案编号以及选课的学期
-                    """
-                    self.fajhh = bs.find("li", {"title": "校任选课", "id": "xarxk"})["onclick"].split('=')[1].split("'")[0]
-                    term = bs.find("h4").text.split('(')[1].split('\r')[0]
-                    if term[-1] == '春':
-                        term = term[:9] + "-2-1"
-                    else:
-                        term = term[:9] + "-1-1"
-                    road = "user_info/" + str(self.id) + ".csv"
-                    if not path.exists(road):  # 导入选课内容
-                        print("选课文件不存在！请检查！")
-                        exit(0)
-                    file = open(road, mode='r')
-                    lessons = csv.reader(file)
+            print("第%d次搜索课余量！" % count)
+            bs = self.get_lesson_page()
+            if count == 1:
+                """
+                    导入培养方案编号以及选课的学期
+                """
+                self.get_term(bs=bs)
+                self.get_fajhh(bs=bs)
+                self.get_lessons_list()
+            token_Value = self.get_tokenvalue(bs=bs)
+            lesson_list = self.search_lessons_info()
+            if len(lesson_list) != 0:
+                self.choose_lessons(tokenValue=token_Value, lesson_list=lesson_list)
 
-                    for lesson in lessons:
-                        lesson_info = {"no": lesson[0], "id": lesson[1], "term": term, "name": lesson[2]}
-                        self.deal_info(lesson_info)  # 处理选课信息
-                    file.close()
-                data = self.sum_lessons(tokenValue)
-                try:  # 提交选课表单
-                    rq = self.session.post(url="https://urp.shou.edu.cn/student/courseSelect"
-                                               "/selectCourse/checkInputCodeAndSubmit",
-                                           data=data,
-                                           timeout=10)
-                except requests.ConnectionError:
-                    print("选课提交失败！连接错误！")
-                    exit(0)
-                except requests.HTTPError:
-                    print("选课提交失败！请求网页有问题！")
-                    exit(0)
-                except requests.Timeout:
-                    print("选课提交失败！请求超时！")
-                    exit(0)
-                else:
-                    self.judge_logout(rq)
-                    data.pop("tokenValue")
-                    data.pop("inputCode")
-                    try:  # 网站要求的选课二次确认
-                        self.session.post(url="https://urp.shou.edu.cn/student/courseSelect/selectCourses/waitingfor",
-                                          data=data,
-                                          timeout=10)
-                    except requests.ConnectionError:
-                        print("选课提交确认失败！连接错误！")
-                        exit(0)
-                    except requests.HTTPError:
-                        print("选课提交确认失败！请求网页有问题！")
-                        exit(0)
-                    except requests.Timeout:
-                        print("选课提交确认失败！请求超时！")
-                        exit(0)
-                    else:
-                        self.judge_logout(rq)
-                        data = {"kcNum": str(len(self.lessons_list)), "redisKey": self.id + self.dealType}
-                        i = 1
-                        while True:
-                            sleep(1)  # 让服务器处理选课的等待时间，严禁删除！！！
-                            try:  # 获取选课结果
-                                rq = self.session.post(url="https://urp.shou.edu.cn/student/"
-                                                           "  courseSelect/selectResult/query",
-                                                       data=data,
-                                                       timeout=10)
-                            except requests.ConnectionError:
-                                print("获取选课结果失败！连接错误！")
-                                exit(0)
-                            except requests.HTTPError:
-                                print("获取选课结果失败！请求网页有问题！")
-                                exit(0)
-                            except requests.Timeout:
-                                print("获取选课结果失败！请求超时！")
-                                exit(0)
-                            else:
-                                self.judge_logout(rq)
-                                if "true" in rq.text:
-                                    break
-                                if i > 10:
-                                    print("获取选课结果失败！请到urp进行确认！")
-                                    exit(0)
-                                print("第" + str(i) + "次获取选课结果失败！正在重试！")
-                                i += 1
-                        infos = eval(rq.text.replace("true", '"true"'))
-                        infos = infos["result"]
-                        for info in infos:  # 判断选课结果并输出
-                            self.judge_info(info.split(":")[0], info.split(":")[-1])
+
