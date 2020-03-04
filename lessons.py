@@ -156,7 +156,7 @@ class Lessons:
         if not path.exists(road):  # 导入选课内容
             print("选课文件不存在！请检查！")
             exit(0)
-        file = open(road, mode='r')
+        file = open(road, mode='r', encoding='utf-8')
         lessons = csv.reader(file)
         for lesson in lessons:
             lesson_info = {"no": lesson[0], "id": lesson[1], "term": self.term, "name": lesson[2]}
