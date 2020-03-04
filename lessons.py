@@ -185,6 +185,12 @@ class Lessons:
                 else:
                     self.judge_logout(rp)
                     infos = eval(eval(rp.text)['rwRxkZlList'])
+                    if len(infos) == 0:
+                        print("未找到或已选%s！" % lesson['name'])
+                        for i in range(len(self.lessons_list)):
+                            if lesson['no'] == self.lessons_list[i]['no']:
+                                self.lessons_list.pop(i)
+                        break
                     for info in infos:
                         if info['kxh'] == lesson['id'] and int(info['bkskyl']) > 0:
                             lessons_list.append(lesson)
@@ -286,17 +292,22 @@ class Lessons:
             sleep(0.5)
             count += 1
             print("第%d次搜索课余量！" % count)
-            bs = self.get_lesson_page()
+
             if count == 1:
                 """
                     导入培养方案编号以及选课的学期
                 """
+                bs = self.get_lesson_page()
+                self.judge_choose(bs=bs)
                 self.get_term(bs=bs)
                 self.get_fajhh(bs=bs)
                 self.get_lessons_list()
-            token_Value = self.get_tokenvalue(bs=bs)
+                token_Value = self.get_tokenvalue(bs=bs)
+
             lesson_list = self.search_lessons_info()
             if len(lesson_list) != 0:
                 self.choose_lessons(tokenValue=token_Value, lesson_list=lesson_list)
-
+                bs = self.get_lesson_page()
+                self.judge_choose(bs=bs)
+                token_Value = self.get_tokenvalue(bs=bs)
 
