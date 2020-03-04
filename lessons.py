@@ -1,8 +1,10 @@
+
 import requests
-import cv2
-import numpy
 import csv
+
 from os import path
+from io import BytesIO
+from PIL import Image
 from bs4 import BeautifulSoup
 from time import sleep
 
@@ -67,12 +69,11 @@ class Lessons:
             print("获取验证码失败！请求超时！")
             exit(0)
         else:
-            # 验证码显示部分，暂时用的opencv，还请各位大佬指教
-            img = cv2.imdecode(numpy.frombuffer(login_img.content, numpy.uint8), 0)  # 可能会出现没有验证码情况，未解决！！！
-            cv2.imshow("验证码", img)
-            cv2.waitKey(0)
+            byteio = BytesIO()
+            byteio.write(login_img.content)
+            img = Image.open(byteio)
+            img.show()  # 可能会出现没有验证码情况，未解决！！！
             code = str(input("验证码为："))
-            cv2.destroyAllWindows()
             data = {"j_username": self.id, "j_password": passwd, "j_captcha": code,
                     "_spring_security_remember_me": "on"}
             try:
@@ -310,4 +311,3 @@ class Lessons:
                 bs = self.get_lesson_page()
                 self.judge_choose(bs=bs)
                 token_Value = self.get_tokenvalue(bs=bs)
-
