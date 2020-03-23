@@ -1,4 +1,3 @@
-
 import requests
 import csv
 
@@ -69,6 +68,9 @@ class Lessons:
             print("获取验证码失败！请求超时！")
             exit(0)
         else:
+            if login_img.text == '':
+                print("获取验证码失败！验证码为空！")
+                exit(0)
             byteio = BytesIO()
             byteio.write(login_img.content)
             img = Image.open(byteio)
@@ -293,7 +295,6 @@ class Lessons:
             sleep(0.5)
             count += 1
             print("第%d次搜索课余量！" % count)
-
             if count == 1:
                 """
                     导入培养方案编号以及选课的学期
@@ -304,10 +305,14 @@ class Lessons:
                 self.get_fajhh(bs=bs)
                 self.get_lessons_list()
                 token_Value = self.get_tokenvalue(bs=bs)
+                self.choose_lessons(tokenValue=token_Value, lesson_list=self.lessons_list)
+                bs = self.get_lesson_page()
+                self.judge_choose(bs=bs)
+                token_Value = self.get_tokenvalue(bs=bs)
 
-            lesson_list = self.search_lessons_info()
-            if len(lesson_list) != 0:
-                self.choose_lessons(tokenValue=token_Value, lesson_list=lesson_list)
+            lessons_list = self.search_lessons_info()
+            if len(lessons_list) != 0:
+                self.choose_lessons(tokenValue=token_Value, lesson_list=self.lessons_list)
                 bs = self.get_lesson_page()
                 self.judge_choose(bs=bs)
                 token_Value = self.get_tokenvalue(bs=bs)
