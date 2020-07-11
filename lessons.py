@@ -1,6 +1,6 @@
 import requests
 import csv
-
+from hashlib import md5
 from os import path
 from io import BytesIO
 from PIL import Image
@@ -55,7 +55,7 @@ class Lessons:
 
     def login(self):  # 登录模块
         self.id = str(input("用户名为："))
-        passwd = str(input("密码为："))
+        passwd = md5(bytes(str(input("密码为："))))
         try:
             login_img = self.session.get("https://urp.shou.edu.cn/img/captcha.jpg", timeout=10)
         except requests.ConnectionError:
