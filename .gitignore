@@ -3,3 +3,4 @@ __pycache__/
 .DS_Store
 user_info/*
 !user_info/example.csv
+venv/
