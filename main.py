@@ -1,8 +1,4 @@
-from lessons import Lessons
 from urp.api import *
-from urp.lesson import Lesson
-from requests import Session
-from lxml.etree import HTML
 
 
 def start_choose(username: str = '', password: str = ''):
@@ -14,6 +10,11 @@ def start_choose(username: str = '', password: str = ''):
         sleep(0.5)
         count += 1
         print("第%d次搜索课余量！" % count)
+        if count == 1:
+            choose_lesson(lessons, session)
+            results = get_choose_status(lessons, session, username)
+            judge_choose_status(lessons, results)
+            continue
         choose_lessons, lessons = search_lessons(lessons, session)
         if choose_lessons:
             choose_lesson(choose_lessons, session)

@@ -362,7 +362,7 @@ def judge_logout(html: Response) -> None:
     :param html: 请求返回
     :return: None
     """
-    if html.url == "http://urp.shou.edu.cn/login?errorCode=concurrentSessionExpired":
+    if html.url == "https://urp.shou.edu.cn/login?errorCode=concurrentSessionExpired":
         print("有人登陆了您的账号！")
         exit(0)
 
